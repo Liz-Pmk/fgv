@@ -1,13 +1,19 @@
 node_modules
 .next
+ codex/activate-main-page-for-changes
+.DS_Store
+
 out
 .DS_Store
 
 # Logs
+ main
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+ codex/activate-main-page-for-changes
+
 
 # Environment files
 .env
@@ -15,3 +21,4 @@ pnpm-debug.log*
 .env.development.local
 .env.test.local
 .env.production.local
+ main

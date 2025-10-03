@@ -1,6 +1,10 @@
 {
   "name": "fgv",
+ codex/activate-main-page-for-changes
+  "version": "1.0.0",
+
   "version": "0.1.0",
+ main
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -14,9 +18,16 @@
     "react-dom": "18.2.0"
   },
   "devDependencies": {
+ codex/activate-main-page-for-changes
+    "@types/node": "20.11.19",
+    "@types/react": "18.2.55",
+    "@types/react-dom": "18.2.18",
+    "typescript": "5.3.3"
+
     "@types/node": "24.6.2",
     "@types/react": "19.2.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.1.0"
+ main
   }
 }
