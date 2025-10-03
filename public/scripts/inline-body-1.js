@@ -13,73 +13,74 @@ document.addEventListener('DOMContentLoaded', function () {
             const infoPopover = document.getElementById('info-popover-premium');
             const popoverTitle = document.getElementById('popover-title');
             const popoverContent = document.getElementById('popover-content');
-            
-            document.querySelectorAll('.neuro-insight, .rich-nav-icon').forEach(trigger => {
-                const showPopover = (e) => {
-                    const title = e.currentTarget.dataset.title || e.currentTarget.dataset.fundamento;
-                    let content = e.currentTarget.dataset.content;
 
-                    if (!content) {
-                        const contentEl = document.getElementById('fundamento-' + title);
-                        if (contentEl) {
-                            content = contentEl.innerHTML;
-                        }
-                    }
-                    
-                    if (title && content) {
-                        popoverTitle.textContent = title.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                        popoverContent.innerHTML = content;
-                        
-                        infoPopover.classList.remove('opacity-0', 'pointer-events-none');
-                        infoPopover.style.opacity = '1';
-                        infoPopover.style.pointerEvents = 'auto';
-                        
-                        const rect = trigger.getBoundingClientRect();
-                        let left = e.clientX + 15;
-                        let top = e.clientY + 15;
-                        
-                        const popoverWidth = infoPopover.offsetWidth;
-                        const popoverHeight = infoPopover.offsetHeight;
-                        
-                        if (left + popoverWidth > window.innerWidth - 15) {
-                            left = e.clientX - popoverWidth - 15;
-                        }
-                        if (top + popoverHeight > window.innerHeight - 15) {
-                            top = e.clientY - popoverHeight - 15;
+            if (infoPopover && popoverTitle && popoverContent) {
+                document.querySelectorAll('.neuro-insight, .rich-nav-icon').forEach(trigger => {
+                    const showPopover = (e) => {
+                        const title = e.currentTarget.dataset.title || e.currentTarget.dataset.fundamento;
+                        let content = e.currentTarget.dataset.content;
+
+                        if (!content) {
+                            const contentEl = document.getElementById('fundamento-' + title);
+                            if (contentEl) {
+                                content = contentEl.innerHTML;
+                            }
                         }
 
-                        infoPopover.style.left = `${left}px`;
-                        infoPopover.style.top = `${top}px`;
-                        infoPopover.style.transform = 'scale(1)';
-                    }
-                };
+                        if (title && content) {
+                            popoverTitle.textContent = title.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            popoverContent.innerHTML = content;
 
-                const hidePopover = () => {
-                     infoPopover.classList.add('opacity-0', 'pointer-events-none');
-                     infoPopover.style.opacity = '';
-                     infoPopover.style.pointerEvents = '';
-                     infoPopover.style.transform = 'scale(0.95)';
-                };
+                            infoPopover.classList.remove('opacity-0', 'pointer-events-none');
+                            infoPopover.style.opacity = '1';
+                            infoPopover.style.pointerEvents = 'auto';
 
-                trigger.addEventListener('mouseenter', showPopover);
-                trigger.addEventListener('mousemove', (e) => {
-                    if (!infoPopover.classList.contains('opacity-0')) {
-                        let left = e.clientX + 15;
-                        let top = e.clientY + 15;
-                        const popoverWidth = infoPopover.offsetWidth;
-                        const popoverHeight = infoPopover.offsetHeight;
-                        if (left + popoverWidth > window.innerWidth - 15) {
-                            left = e.clientX - popoverWidth - 15;
+                            let left = e.clientX + 15;
+                            let top = e.clientY + 15;
+
+                            const popoverWidth = infoPopover.offsetWidth;
+                            const popoverHeight = infoPopover.offsetHeight;
+
+                            if (left + popoverWidth > window.innerWidth - 15) {
+                                left = e.clientX - popoverWidth - 15;
+                            }
+                            if (top + popoverHeight > window.innerHeight - 15) {
+                                top = e.clientY - popoverHeight - 15;
+                            }
+
+                            infoPopover.style.left = `${left}px`;
+                            infoPopover.style.top = `${top}px`;
+                            infoPopover.style.transform = 'scale(1)';
                         }
-                        if (top + popoverHeight > window.innerHeight - 15) {
-                            top = e.clientY - popoverHeight - 15;
+                    };
+
+                    const hidePopover = () => {
+                        infoPopover.classList.add('opacity-0', 'pointer-events-none');
+                        infoPopover.style.opacity = '';
+                        infoPopover.style.pointerEvents = '';
+                        infoPopover.style.transform = 'scale(0.95)';
+                    };
+
+                    trigger.addEventListener('mouseenter', showPopover);
+                    trigger.addEventListener('mousemove', (e) => {
+                        if (!infoPopover.classList.contains('opacity-0')) {
+                            let left = e.clientX + 15;
+                            let top = e.clientY + 15;
+                            const popoverWidth = infoPopover.offsetWidth;
+                            const popoverHeight = infoPopover.offsetHeight;
+                            if (left + popoverWidth > window.innerWidth - 15) {
+                                left = e.clientX - popoverWidth - 15;
+                            }
+                            if (top + popoverHeight > window.innerHeight - 15) {
+                                top = e.clientY - popoverHeight - 15;
+                            }
+                            infoPopover.style.left = `${left}px`;
+                            infoPopover.style.top = `${top}px`;
                         }
-                        infoPopover.style.left = `${left}px`;
-                        infoPopover.style.top = `${top}px`;
-                    }
+                    });
+                    trigger.addEventListener('mouseleave', hidePopover);
                 });
-                trigger.addEventListener('mouseleave', hidePopover);
-            });
+            }
             
             // --- Navigation highlighting ---
             const navLinks = document.querySelectorAll('.nav-link');
@@ -160,16 +161,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!modal) return;
                 const openBtn = document.getElementById(openBtnId);
                 const closeBtn = document.getElementById(closeBtnId);
-                
+                const modalContent = modal.querySelector('.modal-content');
+                if (!modalContent) return;
+
                 const openModal = () => {
                     modal.classList.remove('opacity-0', 'pointer-events-none');
                     modal.style.opacity = '1';
                     modal.style.pointerEvents = 'auto';
-                    setTimeout(() => modal.querySelector('.modal-content').classList.remove('scale-95'), 10);
+                    setTimeout(() => modalContent.classList.remove('scale-95'), 10);
                 };
 
                 const closeModal = () => {
-                    modal.querySelector('.modal-content').classList.add('scale-95');
+                    modalContent.classList.add('scale-95');
                     modal.style.opacity = '0';
                     modal.style.pointerEvents = 'none';
                     setTimeout(() => {
