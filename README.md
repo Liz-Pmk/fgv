@@ -3,12 +3,13 @@
 Trabalhos FGV
 
 ## Estrutura do projeto
-- `public/`: arquivos estáticos a serem servidos diretamente.
-- `src/pages/`: páginas da aplicação (por exemplo, Next.js).
-- `src/components/`: componentes reutilizáveis.
-- `src/styles/`: arquivos de estilo compartilhados.
-- `src/lib/`: funções auxiliares e utilitários.
-- `content/`: espaço para colar os arquivos `.txt` com o conteúdo inicial do site.
+- `main/`: diretório raiz do projeto utilizado pelo deploy na Vercel.
+  - `public/`: arquivos estáticos a serem servidos diretamente.
+  - `src/pages/`: páginas da aplicação (por exemplo, Next.js).
+  - `src/components/`: componentes reutilizáveis.
+  - `src/styles/`: arquivos de estilo compartilhados.
+  - `src/lib/`: funções auxiliares e utilitários.
+  - `content/`: espaço para colar os arquivos `.txt` com o conteúdo inicial do site.
 
 ## Automação entre Codex, GitHub e Vercel
 As GitHub Actions configuradas permitem que o fluxo de trabalho da Codex (assistente), do GitHub e da Vercel funcione de forma integrada:
