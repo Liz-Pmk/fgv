@@ -1,7 +1,756 @@
 import Head from "next/head";
 import Script from "next/script";
+import { useEffect } from "react";
+
+declare global {
+  interface Window {
+    Chart?: any;
+  }
+}
+
+type SimulationConfig = {
+  containerId: string;
+  spinnerId: string;
+  outputId: string;
+  text: string;
+  delayMs?: number;
+};
 
 export default function Home() {
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    let disposed = false;
+    const cleanups: Array<() => void> = [];
+    const registerCleanup = (fn: () => void) => {
+      cleanups.push(fn);
+    };
+
+    // Reveal animations
+    const revealElements = Array.from(document.querySelectorAll<HTMLElement>(".reveal"));
+    if ("IntersectionObserver" in window) {
+      const revealObserver = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("show");
+              revealObserver.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.2 },
+      );
+
+      revealElements.forEach((element) => revealObserver.observe(element));
+      registerCleanup(() => revealObserver.disconnect());
+    } else {
+      revealElements.forEach((element) => element.classList.add("show"));
+    }
+
+    // Navigation highlight
+    const navLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>(".nav-link"));
+    const sections = navLinks
+      .map((link) => document.querySelector<HTMLElement>(link.getAttribute("href") ?? ""))
+      .filter((section): section is HTMLElement => Boolean(section));
+    const headerHeight = document.getElementById("header")?.offsetHeight ?? 0;
+
+    const updateActiveLink = () => {
+      if (disposed) {
+        return;
+      }
+      const scrollPosition = window.scrollY + headerHeight + 16;
+      let activeSection: HTMLElement | null = null;
+
+      sections.forEach((section) => {
+        const sectionTop = section.offsetTop;
+        const sectionBottom = sectionTop + section.offsetHeight;
+        if (scrollPosition >= sectionTop && scrollPosition < sectionBottom) {
+          activeSection = section;
+        }
+      });
+
+      navLinks.forEach((link) => link.classList.remove("active"));
+      if (activeSection?.id) {
+        const matching = navLinks.find((link) => link.getAttribute("href") === `#${activeSection?.id}`);
+        matching?.classList.add("active");
+      }
+    };
+
+    updateActiveLink();
+    const handleScroll = () => updateActiveLink();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
+    registerCleanup(() => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    });
+
+    // Popovers for neuro insights and fundamentos
+    const popover = document.getElementById("info-popover-premium") as HTMLElement | null;
+    const popoverTitle = document.getElementById("popover-title") as HTMLElement | null;
+    const popoverContent = document.getElementById("popover-content") as HTMLElement | null;
+
+    let activeTrigger: HTMLElement | null = null;
+    const hidePopover = () => {
+      if (!popover) {
+        return;
+      }
+      popover.style.opacity = "0";
+      popover.style.pointerEvents = "none";
+      popover.style.transform = "scale(0.95)";
+      activeTrigger = null;
+    };
+
+    const formatTitle = (raw: string) =>
+      raw
+        .replace(/[-_]+/g, " ")
+        .replace(/\s+/g, " ")
+        .replace(/\b\w/g, (letter) => letter.toUpperCase())
+        .trim();
+
+    if (popover && popoverTitle && popoverContent) {
+      const hoverCapable = typeof window.matchMedia === "function" && window.matchMedia("(hover: hover)").matches;
+      const triggers = Array.from(document.querySelectorAll<HTMLElement>(".neuro-insight, .rich-nav-icon"));
+
+      const documentClickHandler = (event: MouseEvent) => {
+        const target = event.target as Node;
+        if (popover.contains(target)) {
+          return;
+        }
+        if (triggers.some((trigger) => trigger.contains(target))) {
+          return;
+        }
+        hidePopover();
+      };
+
+      document.addEventListener("click", documentClickHandler);
+      registerCleanup(() => document.removeEventListener("click", documentClickHandler));
+
+      const hideOnScroll = () => hidePopover();
+      window.addEventListener("scroll", hideOnScroll);
+      registerCleanup(() => window.removeEventListener("scroll", hideOnScroll));
+
+      const positionPopover = (element: HTMLElement) => {
+        if (!popover) {
+          return;
+        }
+        const rect = element.getBoundingClientRect();
+        const maxWidth = 320;
+        const horizontalPadding = 16;
+        const verticalOffset = 12;
+        const left = Math.min(
+          window.innerWidth - maxWidth - horizontalPadding,
+          Math.max(horizontalPadding, rect.left + rect.width / 2 - maxWidth / 2),
+        );
+        const top = Math.min(
+          window.innerHeight - popover.offsetHeight - verticalOffset,
+          Math.max(verticalOffset, rect.bottom + verticalOffset),
+        );
+        popover.style.left = `${left}px`;
+        popover.style.top = `${top}px`;
+      };
+
+      const resolveInfo = (trigger: HTMLElement) => {
+        const dataset = trigger.dataset;
+        let title = dataset.title || dataset.fundamento || "";
+        let content = dataset.content || "";
+        if (!content && dataset.fundamento) {
+          const source = document.getElementById(`fundamento-${dataset.fundamento}`);
+          if (source) {
+            content = source.innerHTML;
+          }
+          if (!title) {
+            title = dataset.fundamento;
+          }
+        }
+
+        if (!title || !content) {
+          return null;
+        }
+
+        return {
+          title: formatTitle(title),
+          content,
+        };
+      };
+
+      const showPopoverFor = (trigger: HTMLElement) => {
+        const info = resolveInfo(trigger);
+        if (!info) {
+          return;
+        }
+        if (activeTrigger === trigger && popover.style.opacity === "1") {
+          return;
+        }
+
+        activeTrigger = trigger;
+        popoverTitle.textContent = info.title;
+        popoverContent.innerHTML = info.content;
+        positionPopover(trigger);
+        popover.style.opacity = "1";
+        popover.style.pointerEvents = "auto";
+        popover.style.transform = "scale(1)";
+      };
+
+      triggers.forEach((trigger) => {
+        const handleClick = (event: Event) => {
+          event.preventDefault();
+          if (activeTrigger === trigger && popover.style.opacity === "1") {
+            hidePopover();
+            return;
+          }
+          showPopoverFor(trigger);
+        };
+
+        trigger.addEventListener("click", handleClick);
+        registerCleanup(() => trigger.removeEventListener("click", handleClick));
+
+        const handleFocus = () => showPopoverFor(trigger);
+        const handleBlur = () => {
+          if (activeTrigger === trigger) {
+            hidePopover();
+          }
+        };
+
+        trigger.addEventListener("focus", handleFocus);
+        trigger.addEventListener("blur", handleBlur);
+        registerCleanup(() => {
+          trigger.removeEventListener("focus", handleFocus);
+          trigger.removeEventListener("blur", handleBlur);
+        });
+
+        if (hoverCapable) {
+          const handleMouseEnter = () => showPopoverFor(trigger);
+          const handleMouseLeave = () => {
+            if (activeTrigger === trigger) {
+              hidePopover();
+            }
+          };
+
+          trigger.addEventListener("mouseenter", handleMouseEnter);
+          trigger.addEventListener("mouseleave", handleMouseLeave);
+          registerCleanup(() => {
+            trigger.removeEventListener("mouseenter", handleMouseEnter);
+            trigger.removeEventListener("mouseleave", handleMouseLeave);
+          });
+        }
+      });
+    }
+
+    // Tabs
+    document.querySelectorAll<HTMLElement>("[data-tab-group]").forEach((group) => {
+      const buttons = Array.from(group.querySelectorAll<HTMLButtonElement>(".tab-button"));
+      const contents = Array.from(group.querySelectorAll<HTMLElement>(".tab-content"));
+      if (!buttons.length || !contents.length) {
+        return;
+      }
+
+      const activateTab = (targetId?: string) => {
+        const fallback = contents[0]?.id;
+        const id = targetId && contents.some((content) => content.id === targetId) ? targetId : fallback;
+
+        contents.forEach((content) => {
+          const isActive = content.id === id;
+          content.classList.toggle("active", isActive);
+          content.classList.toggle("hidden", !isActive);
+        });
+
+        buttons.forEach((button) => {
+          button.classList.toggle("active", button.dataset.tab === id);
+        });
+      };
+
+      activateTab(buttons.find((button) => button.classList.contains("active"))?.dataset.tab ?? contents[0]?.id);
+
+      buttons.forEach((button) => {
+        const handler = () => activateTab(button.dataset.tab);
+        button.addEventListener("click", handler);
+        registerCleanup(() => button.removeEventListener("click", handler));
+      });
+    });
+
+    // Modal
+    const modal = document.getElementById("justificativa-modal");
+    const modalContent = modal?.querySelector<HTMLElement>(".modal-content") ?? null;
+    const openModalButton = document.getElementById("open-justificativa-modal");
+    const closeModalButton = document.getElementById("close-justificativa-modal");
+
+    if (modal && modalContent) {
+      const openModal = () => {
+        modal.classList.remove("opacity-0", "pointer-events-none");
+        requestAnimationFrame(() => modalContent.classList.remove("scale-95"));
+      };
+
+      const closeModal = () => {
+        modalContent.classList.add("scale-95");
+        window.setTimeout(() => {
+          modal.classList.add("opacity-0", "pointer-events-none");
+        }, 200);
+      };
+
+      const handleBackdropClick = (event: MouseEvent) => {
+        if (event.target === modal) {
+          closeModal();
+        }
+      };
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === "Escape" && !modal.classList.contains("pointer-events-none")) {
+          closeModal();
+        }
+      };
+
+      if (openModalButton) {
+        openModalButton.addEventListener("click", openModal);
+        registerCleanup(() => openModalButton.removeEventListener("click", openModal));
+      }
+
+      if (closeModalButton) {
+        closeModalButton.addEventListener("click", closeModal);
+        registerCleanup(() => closeModalButton.removeEventListener("click", closeModal));
+      }
+
+      modal.addEventListener("click", handleBackdropClick);
+      document.addEventListener("keydown", handleKeyDown);
+
+      registerCleanup(() => {
+        modal.removeEventListener("click", handleBackdropClick);
+        document.removeEventListener("keydown", handleKeyDown);
+      });
+    }
+
+    // Charts
+    const waitForChart = () =>
+      new Promise<any>((resolve) => {
+        if (window.Chart) {
+          resolve(window.Chart);
+          return;
+        }
+        const interval = window.setInterval(() => {
+          if (window.Chart) {
+            window.clearInterval(interval);
+            resolve(window.Chart);
+          }
+        }, 100);
+        registerCleanup(() => window.clearInterval(interval));
+      });
+
+    const chartInstances: any[] = [];
+
+    const instantiateChart = (canvas: HTMLCanvasElement & { _chartInstance?: any }, ChartCtor: any) => {
+      if (canvas._chartInstance || !canvas.isConnected) {
+        return;
+      }
+      const context = canvas.getContext("2d");
+      if (!context) {
+        return;
+      }
+
+      let instance: any;
+      if (canvas.id === "chart1") {
+        instance = new ChartCtor(context, {
+          type: "bar",
+          data: {
+            labels: ["Nível de serviço atual", "Nível de serviço potencial"],
+            datasets: [
+              {
+                data: [75, 100],
+                backgroundColor: ["#0096c7", "#0077b6"],
+                borderRadius: 8,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true, ticks: { stepSize: 25 } },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+      } else if (canvas.id === "chart2") {
+        instance = new ChartCtor(context, {
+          type: "line",
+          data: {
+            labels: ["2022", "2023", "2024", "2025"],
+            datasets: [
+              {
+                data: [45, 55, 70, 87],
+                backgroundColor: "rgba(173, 232, 244, 0.4)",
+                borderColor: "#0096c7",
+                borderWidth: 3,
+                tension: 0.35,
+                pointBackgroundColor: "#0077b6",
+                fill: true,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: (value: number) => `${value}%`,
+                },
+              },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+      }
+
+      if (instance) {
+        canvas._chartInstance = instance;
+        chartInstances.push(instance);
+      }
+    };
+
+    if ("IntersectionObserver" in window) {
+      const chartObserver = new IntersectionObserver(
+        (entries, observer) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) {
+              return;
+            }
+
+            const canvas = entry.target as HTMLCanvasElement & { _chartInstance?: any };
+            const instantiate = (ChartCtor: any) => {
+              if (disposed) {
+                return;
+              }
+              const before = canvas._chartInstance;
+              instantiateChart(canvas, ChartCtor);
+              if (!before && canvas._chartInstance) {
+                observer.unobserve(canvas);
+              }
+            };
+
+            if (window.Chart) {
+              instantiate(window.Chart);
+            } else {
+              waitForChart().then(instantiate);
+            }
+          });
+        },
+        { threshold: 0.4 },
+      );
+
+      document
+        .querySelectorAll<HTMLCanvasElement>(".chart-container canvas")
+        .forEach((canvas) => chartObserver.observe(canvas));
+
+      registerCleanup(() => chartObserver.disconnect());
+    } else {
+      waitForChart().then((ChartCtor) => {
+        if (disposed) {
+          return;
+        }
+        document
+          .querySelectorAll<HTMLCanvasElement>(".chart-container canvas")
+          .forEach((canvas) => instantiateChart(canvas as HTMLCanvasElement & { _chartInstance?: any }, ChartCtor));
+      });
+    }
+
+    // Gemini simulations
+    const runSimulation = (config: SimulationConfig | null) => {
+      if (!config) {
+        return;
+      }
+
+      const container = document.getElementById(config.containerId);
+      const spinner = document.getElementById(config.spinnerId);
+      const output = document.getElementById(config.outputId);
+      if (!container || !spinner || !output) {
+        return;
+      }
+
+      container.classList.remove("hidden");
+      spinner.classList.remove("hidden");
+      output.classList.add("hidden");
+
+      const finish = () => {
+        if (disposed) {
+          return;
+        }
+        spinner.classList.add("hidden");
+        output.classList.remove("hidden");
+        output.textContent = config.text;
+      };
+
+      if (config.delayMs !== undefined && config.delayMs <= 0) {
+        spinner.classList.add("hidden");
+        output.classList.remove("hidden");
+        output.textContent = config.text;
+        return;
+      }
+
+      window.setTimeout(finish, config.delayMs ?? 600);
+    };
+
+    const getValue = (id: string) =>
+      (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null)?.value?.trim() ?? "";
+
+    const registerButton = (buttonId: string, builder: () => SimulationConfig | null) => {
+      const button = document.getElementById(buttonId);
+      if (!button) {
+        return;
+      }
+      const handler = () => runSimulation(builder());
+      button.addEventListener("click", handler);
+      registerCleanup(() => button.removeEventListener("click", handler));
+    };
+
+    const friendlyList = (items: string[]) => {
+      if (items.length <= 1) {
+        return items.join("");
+      }
+      const clone = [...items];
+      const last = clone.pop();
+      return `${clone.join(", ")} e ${last}`;
+    };
+
+    registerButton("gemini-generate-pitch-btn", () => {
+      const product = getValue("gemini-product");
+      const profile = getValue("gemini-profile");
+      if (!product || !profile) {
+        return {
+          containerId: "gemini-result-container",
+          spinnerId: "gemini-spinner",
+          outputId: "gemini-result",
+          text: "Por favor, selecione o produto e o perfil do cliente.",
+          delayMs: 0,
+        };
+      }
+
+      const highlights: Record<string, string[]> = {
+        "Smart TV 4K": [
+          "imagem 4K vibrante com HDR",
+          "acesso rápido aos aplicativos de streaming",
+          "conectividade Wi-Fi estável para toda a família",
+        ],
+        "Geladeira Frost-Free": [
+          "sistema frost-free que evita o descongelamento manual",
+          "espaço interno inteligente com gavetas flexíveis",
+          "economia de energia com selo Procel A",
+        ],
+        "Máquina de Lavar 15kg": [
+          "capacidade para roupas de cama volumosas",
+          "programas automáticos que cuidam dos tecidos",
+          "motor silencioso para lavar a qualquer hora",
+        ],
+        "Sofá Retrátil": [
+          "assentos retráteis com espuma de alta densidade",
+          "tecido fácil de limpar para o dia a dia",
+          "design acolhedor para reunir quem você ama",
+        ],
+      };
+
+      const benefits = highlights[product] ?? [
+        "qualidade comprovada Lojas Cem",
+        "condições especiais no crediário próprio",
+      ];
+
+      return {
+        containerId: "gemini-result-container",
+        spinnerId: "gemini-spinner",
+        outputId: "gemini-result",
+        text: `Oi, ${profile}! Dá uma olhada nesta ${product}: ${friendlyList(benefits)}. Vamos aproveitar o crediário da Lojas Cem para levar conforto agora e pagar do jeitinho que cabe no seu bolso?`,
+      };
+    });
+
+    registerButton("gemini-generate-post-btn", () => {
+      const product = getValue("gemini-product");
+      const profile = getValue("gemini-profile");
+      if (!product || !profile) {
+        return {
+          containerId: "gemini-result-container",
+          spinnerId: "gemini-spinner",
+          outputId: "gemini-result",
+          text: "Escolha o produto e o perfil para gerar o post.",
+          delayMs: 0,
+        };
+      }
+
+      return {
+        containerId: "gemini-result-container",
+        spinnerId: "gemini-spinner",
+        outputId: "gemini-result",
+        text: `✨ ${product} chegou na Lojas Cem! Pensado para ${profile.toLowerCase()}, com conforto, tecnologia e o crediário que só a \"Loja da Família Brasileira\" oferece. Passe na loja ou chame um consultor digital e descubra como deixar sua casa ainda melhor! 💙🏠`,
+      };
+    });
+
+    registerButton("gemini-generate-logistics-btn", () => {
+      const challenge = getValue("logistics-challenge-select");
+      if (!challenge) {
+        return {
+          containerId: "gemini-logistics-result-container",
+          spinnerId: "gemini-logistics-spinner",
+          outputId: "gemini-logistics-result",
+          text: "Selecione um desafio logístico para começar.",
+          delayMs: 0,
+        };
+      }
+
+      const recommendations: Record<string, string[]> = {
+        "Otimizar rotas de entrega da 'última milha'": [
+          "mapear micro-hubs nas lojas com maior giro",
+          "adotar roteirização dinâmica com janela de entrega escolhida pelo cliente",
+          "usar telemetria para acompanhar desempenho dos parceiros",
+        ],
+        "Prever demanda de estoque para a Black Friday": [
+          "unir histórico de vendas, pré-vendas e buscas no site",
+          "criar cenários de demanda com IA e revisar diariamente",
+          "destinar estoque reserva nas lojas âncora para ship-from-store",
+        ],
+        "Gerenciar estoque unificado entre lojas e online": [
+          "integrar OMS e WMS com visão única de estoque",
+          "definir regras de alocação priorizando lojas com baixa ruptura",
+          "implantar contagens cíclicas com RFID nos produtos de maior giro",
+        ],
+      };
+
+      const steps = (recommendations[challenge] ?? []).map((item, index) => `${index + 1}. ${item}.`).join(" ");
+
+      return {
+        containerId: "gemini-logistics-result-container",
+        spinnerId: "gemini-logistics-spinner",
+        outputId: "gemini-logistics-result",
+        text:
+          steps ||
+          "Vamos combinar dados de vendas, operação e logística para desenhar a solução omnichannel ideal.",
+      };
+    });
+
+    registerButton("gemini-generate-route-btn", () => {
+      const cep = getValue("cep-input").replace(/\D/g, "");
+      if (cep.length !== 8) {
+        return {
+          containerId: "gemini-route-result-container",
+          spinnerId: "gemini-route-spinner",
+          outputId: "gemini-route-result",
+          text: "Por favor, insira um CEP válido com 8 dígitos.",
+          delayMs: 0,
+        };
+      }
+
+      const formattedCep = `${cep.slice(0, 5)}-${cep.slice(5)}`;
+
+      return {
+        containerId: "gemini-route-result-container",
+        spinnerId: "gemini-route-spinner",
+        outputId: "gemini-route-result",
+        text: `Para o CEP ${formattedCep}, a loja Lojas Cem mais próxima fica na região central, em uma unidade conceito com retirada rápida. Conectei você ao consultor digital João Silva pelo WhatsApp (11) 98888-0000 para agilizar o atendimento.`,
+      };
+    });
+
+    registerButton("gemini-generate-solution-btn", () => {
+      const challenge = getValue("gemini-solution-input");
+      if (!challenge) {
+        return {
+          containerId: "gemini-solution-result-container",
+          spinnerId: "gemini-solution-spinner",
+          outputId: "gemini-solution-result",
+          text: "Por favor, descreva seu desafio.",
+          delayMs: 0,
+        };
+      }
+
+      return {
+        containerId: "gemini-solution-result-container",
+        spinnerId: "gemini-solution-spinner",
+        outputId: "gemini-solution-result",
+        text: `Vamos resolver: ${challenge}. Sugiro combinar um produto estrela da Lojas Cem, orientar a instalação com um consultor digital e finalizar com uma visita à loja para sentir o acabamento de perto.`,
+      };
+    });
+
+    registerButton("gemini-generate-support-btn", () => {
+      const issue = getValue("gemini-support-input");
+      if (!issue) {
+        return {
+          containerId: "gemini-support-result-container",
+          spinnerId: "gemini-support-spinner",
+          outputId: "gemini-support-result",
+          text: "Por favor, descreva seu problema.",
+          delayMs: 0,
+        };
+      }
+
+      return {
+        containerId: "gemini-support-result-container",
+        spinnerId: "gemini-support-spinner",
+        outputId: "gemini-support-result",
+        text: `Passo a passo:\n1. Desligue o equipamento e aguarde 5 minutos.\n2. Verifique cabos e tomada dedicada.\n3. Faça um teste rápido seguindo o manual do produto.\n4. Se o problema continuar, um consultor da Lojas Cem está pronto para ajudar pelo 0800 772 2366.`,
+      };
+    });
+
+    registerButton("gemini-generate-frete-btn", () => {
+      const cep = getValue("frete-cep-input").replace(/\D/g, "");
+      if (cep.length !== 8) {
+        return {
+          containerId: "gemini-frete-result-container",
+          spinnerId: "gemini-frete-spinner",
+          outputId: "gemini-frete-result",
+          text: "Por favor, insira um CEP válido com 8 dígitos.",
+          delayMs: 0,
+        };
+      }
+
+      return {
+        containerId: "gemini-frete-result-container",
+        spinnerId: "gemini-frete-spinner",
+        outputId: "gemini-frete-result",
+        text: "Opção mais rápida: Ship-from-store a partir da loja de referência da região, entrega em até 24h por R$ 89,90.\nOpção mais econômica: Transportadora BrasilEntrega, entrega em 4 dias úteis por R$ 54,90.\nAmbas acompanham rastreamento em tempo real no portal do cliente.",
+      };
+    });
+
+    registerButton("gemini-generate-trade-btn", () => {
+      const channel = getValue("trade-channel");
+      const category = getValue("trade-category");
+      const trigger = getValue("trade-trigger");
+
+      return {
+        containerId: "gemini-trade-result-container",
+        spinnerId: "gemini-trade-spinner",
+        outputId: "gemini-trade-result",
+        text: `Plano ${channel}: monte uma vitrine \"${category}\" com storytelling sensorial, equipe treinada para ativar ${trigger.toLowerCase()} e QR Codes que levam a ofertas exclusivas do consultor digital da loja.`,
+      };
+    });
+
+    registerButton("gemini-generate-roi-btn", () => {
+      const retention = Number(getValue("roi-retention")) || 0;
+      const ltv = Number(getValue("roi-ltv")) || 0;
+      const investment = Number(getValue("roi-investment")) || 0;
+      const roiProjection = ((retention / 100) * 0.9 + (ltv / 100) * 0.6) * 100;
+      const payback = investment > 0 ? Math.max(12, Math.round(investment / 450000)) : 12;
+
+      return {
+        containerId: "gemini-roi-result-container",
+        spinnerId: "gemini-roi-spinner",
+        outputId: "gemini-roi-result",
+        text: `Com retenção projetada em ${retention}% e LTV ${ltv}% maior, o ROI estimado da jornada omnichannel alcança aproximadamente ${roiProjection.toFixed(
+          1,
+        )}%. O investimento de R$ ${investment.toLocaleString("pt-BR")} tem payback previsto em cerca de ${payback} meses quando combinado com consultores digitais e ship-from-store.`,
+      };
+    });
+
+    return () => {
+      disposed = true;
+      cleanups.reverse().forEach((cleanup) => cleanup());
+      chartInstances.forEach((instance) => {
+        if (instance?.destroy) {
+          instance.destroy();
+        }
+      });
+    };
+  }, []);
+
   return (
     <>
       <Head>
@@ -70,7 +819,15 @@ export default function Home() {
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .reveal {
+            opacity: 0;
+            transform: translateY(24px);
             visibility: hidden;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        .reveal.show {
+            opacity: 1;
+            transform: translateY(0);
+            visibility: visible;
         }
         #info-popover-premium {
             transition: opacity 0.3s, transform 0.3s;
@@ -117,9 +874,10 @@ export default function Home() {
 
       <Script src="https://cdn.tailwindcss.com" strategy="afterInteractive" />
       <Script src="https://cdn.jsdelivr.net/npm/chart.js" strategy="afterInteractive" />
-      <Script src="https://unpkg.com/scrollreveal" strategy="afterInteractive" />
-      <Script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js" strategy="afterInteractive" />
-            <Script src="/scripts/inline-body-1.js" strategy="afterInteractive" />
+      <Script
+        src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"
+        strategy="afterInteractive"
+      />
     </>
   );
 }
