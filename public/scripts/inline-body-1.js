@@ -163,13 +163,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 const openModal = () => {
                     modal.classList.remove('opacity-0', 'pointer-events-none');
+                    modal.style.opacity = '1';
+                    modal.style.pointerEvents = 'auto';
                     setTimeout(() => modal.querySelector('.modal-content').classList.remove('scale-95'), 10);
                 };
 
                 const closeModal = () => {
                     modal.querySelector('.modal-content').classList.add('scale-95');
+                    modal.style.opacity = '0';
+                    modal.style.pointerEvents = 'none';
                     setTimeout(() => {
                         modal.classList.add('opacity-0', 'pointer-events-none');
+                        modal.style.opacity = '';
+                        modal.style.pointerEvents = '';
                     }, 300);
                 };
 
