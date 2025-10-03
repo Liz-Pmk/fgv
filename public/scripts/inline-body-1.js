@@ -31,6 +31,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         popoverContent.innerHTML = content;
                         
                         infoPopover.classList.remove('opacity-0', 'pointer-events-none');
+                        infoPopover.style.opacity = '1';
+                        infoPopover.style.pointerEvents = 'auto';
                         
                         const rect = trigger.getBoundingClientRect();
                         let left = e.clientX + 15;
@@ -53,8 +55,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 };
 
                 const hidePopover = () => {
-                     infoPopover.style.opacity = '0';
-                     infoPopover.style.pointerEvents = 'none';
+                     infoPopover.classList.add('opacity-0', 'pointer-events-none');
+                     infoPopover.style.opacity = '';
+                     infoPopover.style.pointerEvents = '';
                      infoPopover.style.transform = 'scale(0.95)';
                 };
 
