@@ -21,7 +21,7 @@ As GitHub Actions configuradas permitem que o fluxo de trabalho da Codex (assist
 Defina os seguintes segredos no repositório (`Settings` > `Secrets and variables` > `Actions`):
 - `VERCEL_TOKEN`: token de acesso gerado na sua conta Vercel.
 - `VERCEL_ORG_ID`: ID da organização (ou usuário) na Vercel.
-- `VERCEL_PROJECT_ID`: ID do projeto na Vercel.
+- `VERCEL_PROJECT_ID`: ID do projeto na Vercel (`prj_IrmUIXismhCww0F9bJg4venoZLQD`).
 
 Com os segredos configurados, os deploys acontecerão automaticamente a cada alteração na branch `main`. Enquanto os segredos não estiverem presentes, o fluxo registra que estão faltando e finaliza sem falhar.
 
