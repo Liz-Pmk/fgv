@@ -1,3 +1,4 @@
+codex/corrigir-erro-de-deteccao-do-next.js-l81ieb
 import Head from 'next/head';
 import Script from 'next/script';
 import path from 'path';
@@ -77,3 +78,12 @@ export async function getStaticProps() {
     },
   };
 }
+export default function Home() {
+  return (
+    <main style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem' }}>
+      <h1>FGV</h1>
+      <p>Aplicação Next.js configurada para implantação.</p>
+    </main>
+  );
+}
+main
